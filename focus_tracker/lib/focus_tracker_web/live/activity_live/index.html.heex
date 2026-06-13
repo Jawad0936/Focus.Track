@@ -1,0 +1,158 @@
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-900">Activities</h1>
+      <p class="text-sm text-gray-500 mt-1">Welcome, <%= @current_user.name %></p>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <button phx-click="toggle_notifications" class="text-xl">🔔</button>
+
+        <%= if @show_notifications do %>
+          <div class="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-semibold text-sm">Recent notifications</span>
+              <button phx-click="dismiss_notifications" class="text-xs text-gray-500">Close</button>
+            </div>
+
+            <div class="space-y-2">
+              <%= if @notifications == [] do %>
+                <div class="text-sm text-gray-500">No notifications yet.</div>
+              <% else %>
+                <%= for n <- @notifications do %>
+                  <div class="p-2 border border-gray-100 rounded-md">
+                    <div class="text-sm text-gray-700"><%= n.message %></div>
+                    <div class="text-xs text-gray-400 mt-1"><%= n.sent_at %></div>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <.link href={~p"/auth/logout"} method="delete"
+        class="text-sm text-gray-500 hover:text-gray-700">
+        Sign out
+      </.link>
+    </div>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+    <h2 class="text-sm font-medium text-gray-700 mb-4">
+      <%= if @editing, do: "Edit Activity", else: "New Activity" %>
+    </h2>
+    <.form for={@form} phx-submit={if @editing, do: "update", else: "create"}>
+      <div class="flex flex-col gap-3">
+        <.input field={@form[:description]} type="textarea" placeholder="What do you want to track?" rows="2" />
+        <div class="flex gap-3 flex-wrap">
+          <.input field={@form[:category]} type="select"
+            options={[Work: "work", Learning: "learning", Health: "health", Personal: "personal", Other: "other"]} />
+          <.input field={@form[:deadline]} type="datetime-local" label="Deadline" />
+        </div>
+        <div class="flex gap-2">
+          <.button type="submit" phx-disable-with="Saving...">
+            <%= if @editing, do: "Update", else: "Add Activity" %>
+          </.button>
+          <%= if @editing do %>
+            <.button type="button" phx-click="cancel_edit" class="bg-gray-100 text-gray-700 hover:bg-gray-200">
+              Cancel
+            </.button>
+          <% end %>
+        </div>
+      </div>
+    </.form>
+  </div>
+
+  <div class="flex gap-2 mb-4 flex-wrap">
+    <form phx-change="filter">
+      <div class="flex gap-2 flex-wrap">
+        <select name="filters[status]" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select name="filters[category]" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5">
+          <option value="">All categories</option>
+          <option value="work">Work</option>
+          <option value="learning">Learning</option>
+          <option value="health">Health</option>
+          <option value="personal">Personal</option>
+          <option value="other">Other</option>
+        </select>
+        <select name="filters[deadline]" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5">
+          <option value="">Any deadline</option>
+          <option value="today">Due today</option>
+          <option value="week">This week</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="space-y-3">
+    <%= if @activities == [] do %>
+      <div class="text-center py-16 text-gray-400 text-sm">
+        No activities yet. Add one above to get started.
+      </div>
+    <% else %>
+      <%= for activity <- @activities do %>
+        <div class={[
+          "bg-white border rounded-xl p-5 shadow-sm",
+          if(activity.status == "completed", do: "opacity-60", else: "")
+        ]}>
+          <div class="flex items-start gap-4">
+            <%= if activity.status == "pending" do %>
+              <button phx-click="complete" phx-value-id={activity.id}
+                class="mt-0.5 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 flex-shrink-0 transition-colors"
+                title="Mark complete">
+              </button>
+            <% else %>
+              <div class="mt-0.5 w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center">
+                <span class="text-white text-xs">✓</span>
+              </div>
+            <% end %>
+
+            <div class="flex-1 min-w-0">
+              <p class={[
+                "text-gray-900 font-medium",
+                if(activity.status == "completed", do: "line-through text-gray-400", else: "")
+              ]}>
+                <%= activity.description %>
+              </p>
+              <div class="flex gap-2 mt-1.5 flex-wrap items-center">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
+                  <%= activity.category %>
+                </span>
+                <%= if activity.deadline do %>
+                  <span class={"text-xs px-2 py-0.5 rounded-full #{deadline_class(activity)}"}>
+                    <%= format_deadline(activity.deadline) %>
+                  </span>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="flex gap-2 flex-shrink-0">
+              <.link navigate={~p"/activities/#{activity.id}"}
+                class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded-lg">
+                Logs
+              </.link>
+              <%= if activity.status == "pending" do %>
+                <button phx-click="edit" phx-value-id={activity.id}
+                  class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded-lg">
+                  Edit
+                </button>
+              <% end %>
+              <button phx-click="delete" phx-value-id={activity.id}
+                data-confirm="Delete this activity? Logs will be kept."
+                class="text-xs text-red-400 hover:text-red-600 px-2 py-1 border border-red-100 rounded-lg">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</div>
